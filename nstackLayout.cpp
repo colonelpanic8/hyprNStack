@@ -52,6 +52,11 @@ static const CConfigValue<Config::INTEGER>& nstackStacks() {
     return value;
 }
 
+static const CConfigValue<Config::INTEGER>& nstackAutoStacks() {
+    static const CConfigValue<Config::INTEGER> value("plugin:nstack:layout:auto_stacks");
+    return value;
+}
+
 static const CConfigValue<Config::FLOAT>& nstackMasterFactor() {
     static const CConfigValue<Config::FLOAT> value("plugin:nstack:layout:mfact");
     return value;
@@ -157,6 +162,11 @@ void CHyprNstackAlgorithm::applyWorkspaceLayoutOptions() {
     if (wsstacks) {
         m_workspaceData.m_iStackCount = wsstacks;
     }
+
+    auto               wsautostacks = *nstackAutoStacks();
+    if (wslayoutopts.contains("nstack-auto_stacks"))
+        wsautostacks = nstackConfigStringToInt(wslayoutopts.at("nstack-auto_stacks")).value_or(0);
+    m_workspaceData.auto_stacks = wsautostacks;
 
     auto               wsmfact = *nstackMasterFactor();
     if (wslayoutopts.contains("nstack-mfact")) {
@@ -359,6 +369,10 @@ void CHyprNstackAlgorithm::calculateWorkspace() {
     auto            NUMSTACKS      = std::max(2, m_userWorkspaceData.m_iStackCount.value_or(m_workspaceData.m_iStackCount));
 
     const auto      NODECOUNT   = getNodesNo();
+
+    // auto_stacks: one stack per window, so every new tiled window gets its own column
+    if (m_userWorkspaceData.auto_stacks.value_or(m_workspaceData.auto_stacks))
+        NUMSTACKS = std::max(2, NODECOUNT);
 
 	  const auto WORKAREA = m_parent->space()->workArea();
 	  const auto PMONITOR = m_parent->space()->workspace()->m_monitor;
@@ -1271,15 +1285,23 @@ Config::ErrorResult CHyprNstackAlgorithm::layoutMsg(const std::string_view& sv) 
         if (!PWINDOW)
             return Config::configError("no window");
         if (vars.size() >= 2) {
-            int newStackCount = 2;
-            switch (vars[1][0]) {
-                case '+':
-				case '-': newStackCount = m_userWorkspaceData.m_iStackCount.value_or(m_workspaceData.m_iStackCount) + std::stoi(std::string(vars[1])); break;
-				default: newStackCount = std::stoi(std::string(vars[1])); break;
+            if (vars[1] == "auto") {
+                m_userWorkspaceData.auto_stacks = true;
+                calculateWorkspace();
+                return {};
             }
+            int newStackCount = 2;
+            try {
+                switch (vars[1][0]) {
+                    case '+':
+                    case '-': newStackCount = m_userWorkspaceData.m_iStackCount.value_or(m_workspaceData.m_iStackCount) + std::stoi(std::string(vars[1])); break;
+                    default: newStackCount = std::stoi(std::string(vars[1])); break;
+                }
+            } catch (const std::exception&) { return Config::configError("bad stack count"); }
             if (newStackCount) {
                 if (newStackCount < 2)
                     newStackCount = 2;
+                m_userWorkspaceData.auto_stacks   = false;
                 m_userWorkspaceData.m_iStackCount = newStackCount;
                 calculateWorkspace();
             }

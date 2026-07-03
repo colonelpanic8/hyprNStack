@@ -27,6 +27,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CFloatValue>("plugin:nstack:layout:special_scale_factor", "special scale factor", 0.8f));
     HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CIntValue>("plugin:nstack:layout:inherit_fullscreen", "inherit fullscreen", 1));
     HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CIntValue>("plugin:nstack:layout:stacks", "stacks", 2));
+    HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CIntValue>("plugin:nstack:layout:auto_stacks", "auto stacks", 0));
     HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CIntValue>("plugin:nstack:layout:center_single_master", "center single master", 0));
     HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CFloatValue>("plugin:nstack:layout:mfact", "master factor", 0.0f));
     HyprlandAPI::addConfigValueV2(PHANDLE, makeShared<Config::Values::CFloatValue>("plugin:nstack:layout:single_mfact", "single master factor", 1.0f));

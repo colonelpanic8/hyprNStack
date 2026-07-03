@@ -64,6 +64,7 @@ namespace Layout::Tiled {
 	    std::vector<float> stackPercs;
 	    std::vector<int>   stackNodeCount;
 	    int                m_iStackCount        = 2;
+	    bool               auto_stacks          = false;
 	    bool               new_on_top           = false;
 	    bool               new_near_focused     = true;
 	    bool               new_is_master        = true;
@@ -82,6 +83,7 @@ namespace Layout::Tiled {
 	
 	struct SNstackUserWorkspaceData {
 	    std::optional<int>                m_iStackCount;
+	    std::optional<bool>               auto_stacks;
 	    std::optional<float> master_factor;
 	    std::optional<float> single_master_factor;
 	    std::optional<eColOrientation>    orientation;
