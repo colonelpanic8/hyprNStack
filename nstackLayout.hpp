@@ -60,7 +60,6 @@ namespace Layout::Tiled {
 	};
 	
 	struct SNstackWorkspaceData {
-	    WORKSPACEID                workspaceID = WORKSPACE_INVALID;
 	    std::vector<float> stackPercs;
 	    std::vector<int>   stackNodeCount;
 	    int                m_iStackCount        = 2;
@@ -75,10 +74,6 @@ namespace Layout::Tiled {
 	    float              single_master_factor = 0.5f;
 	    float              special_scale_factor = 0.8f;
 	    eColOrientation    orientation          = NSTACK_ORIENTATION_LEFT;
-	
-	    bool               operator==(const SNstackWorkspaceData& rhs) const {
-	        return workspaceID == rhs.workspaceID;
-	    }
 	};
 	
 	struct SNstackUserWorkspaceData {

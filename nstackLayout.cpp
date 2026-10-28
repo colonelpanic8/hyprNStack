@@ -1,7 +1,7 @@
 #include "nstackLayout.hpp"
 #include <limits>
 #include <hyprland/src/config/shared/workspace/WorkspaceRuleManager.hpp>
-#include <hyprland/src/desktop/Workspace.hpp>
+#include <hyprland/src/workspace/HLWorkspace.hpp>
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/debug/log/Logger.hpp>
 #include <hyprland/src/layout/algorithm/Algorithm.hpp>
@@ -11,6 +11,9 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
 #include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
@@ -41,7 +44,7 @@ static std::optional<Config::INTEGER> nstackConfigStringToInt(const std::string&
     try {
         return std::stoll(value);
     } catch (std::exception& e) {
-        Log::logger->log(Log::ERR, "Nstack layoutopt integer format error for '{}': {}", value, e.what());
+        LOG(Log::ERR, "Nstack layoutopt integer format error for '{}': {}", value, e.what());
         return std::nullopt;
     }
 }
@@ -161,7 +164,7 @@ void CHyprNstackAlgorithm::applyWorkspaceLayoutOptions() {
         try {
             std::string stackstr = wslayoutopts.at("nstack-stacks");
             wsstacks             = std::stol(stackstr);
-        } catch (std::exception& e) { Log::logger->log(Log::ERR, "Nstack layoutopt invalid rule value for nstack-stacks: {}", e.what()); }
+        } catch (std::exception& e) { LOG(Log::ERR, "Nstack layoutopt invalid rule value for nstack-stacks: {}", e.what()); }
     }
     if (wsstacks) {
         m_workspaceData.m_iStackCount = wsstacks;
@@ -177,7 +180,7 @@ void CHyprNstackAlgorithm::applyWorkspaceLayoutOptions() {
         std::string mfactstr = wslayoutopts.at("nstack-mfact");
         try {
             wsmfact = std::stof(mfactstr);
-        } catch (std::exception& e) { Log::logger->log(Log::ERR, "Nstack layoutopt nstack-mfact format error: {}", e.what()); }
+        } catch (std::exception& e) { LOG(Log::ERR, "Nstack layoutopt nstack-mfact format error: {}", e.what()); }
     }
     m_workspaceData.master_factor = wsmfact;
 
@@ -187,7 +190,7 @@ void CHyprNstackAlgorithm::applyWorkspaceLayoutOptions() {
         std::string smfactstr = wslayoutopts.at("nstack-single_mfact");
         try {
             wssmfact = std::stof(smfactstr);
-        } catch (std::exception& e) { Log::logger->log(Log::ERR, "Nstack layoutopt nstack-single_mfact format error: {}", e.what()); }
+        } catch (std::exception& e) { LOG(Log::ERR, "Nstack layoutopt nstack-single_mfact format error: {}", e.what()); }
     }
     m_workspaceData.single_master_factor = wssmfact;
 
@@ -196,7 +199,7 @@ void CHyprNstackAlgorithm::applyWorkspaceLayoutOptions() {
         std::string ssfactstr = wslayoutopts.at("nstack-special_scale_factor");
         try {
             wsssfact = std::stof(ssfactstr);
-        } catch (std::exception& e) { Log::logger->log(Log::ERR, "Nstack layoutopt nstack-special_scale_factor format error: {}", e.what()); }
+        } catch (std::exception& e) { LOG(Log::ERR, "Nstack layoutopt nstack-special_scale_factor format error: {}", e.what()); }
     }
     m_workspaceData.special_scale_factor = wsssfact;
 
@@ -1000,16 +1003,16 @@ void CHyprNstackAlgorithm::moveTargetInDirection(SP<ITarget> t, Math::eDirection
     if (!targetWs)
         return;
 
-    t->window()->setAnimationsToMove();
+    t->window()->presentation().setAnimationsToMove();
 
     if (t->window()->m_workspace != targetWs) {
         if (!*PMONITORFALLBACK)
             return; // noop
 
-        t->assignToSpace(targetWs->m_space, focalPointForDir(t, dir));
+        t->assignToSpace(targetWs->space(), focalPointForDir(t, dir));
     } else if (PWINDOW2) {
         // if same monitor, switch windows
-        PWINDOW2->setAnimationsToMove();
+        PWINDOW2->presentation().setAnimationsToMove();
         g_layoutManager->switchTargets(t, PWINDOW2->layoutTarget());
         if (silent)
             Desktop::focusState()->fullWindowFocus(PWINDOW2, Desktop::FOCUS_REASON_KEYBIND);
@@ -1037,8 +1040,8 @@ Config::ErrorResult CHyprNstackAlgorithm::layoutMsg(const std::string_view& sv) 
             return;
 
         Fullscreen::controller()->setFullscreenMode(window, Fullscreen::FSMODE_NONE);
-        window->setAnimationsToMove();
-        target->window()->setAnimationsToMove();
+        window->presentation().setAnimationsToMove();
+        target->window()->presentation().setAnimationsToMove();
         g_layoutManager->switchTargets(window->layoutTarget(), target);
         switchToWindow(window->layoutTarget());
     };
@@ -1046,7 +1049,7 @@ Config::ErrorResult CHyprNstackAlgorithm::layoutMsg(const std::string_view& sv) 
     Hyprutils::String::CVarList2 vars(std::string{sv}, 0, 's');
 
     if (vars.size() < 1 || vars[0].empty()) {
-        Log::logger->log(Log::ERR, "layoutmsg called without params");
+        LOG(Log::ERR, "layoutmsg called without params");
         return Config::configError("layoutmsg without params"); 
     }
 
@@ -1145,7 +1148,7 @@ Config::ErrorResult CHyprNstackAlgorithm::layoutMsg(const std::string_view& sv) 
             return Config::configError("no window");
 
         if (PWINDOW->layoutTarget()->floating()) {
-            g_pKeybindManager->m_dispatchers["swapnext"]("");
+            (void)Config::Actions::swapNext(true);
             return {};
         }
 
@@ -1160,7 +1163,7 @@ Config::ErrorResult CHyprNstackAlgorithm::layoutMsg(const std::string_view& sv) 
             return Config::configError("no window");
 
         if (PWINDOW->layoutTarget()->floating()) {
-            g_pKeybindManager->m_dispatchers["swapprev"]("");
+            (void)Config::Actions::swapNext(false);
             return {};
         }
 
@@ -1178,7 +1181,7 @@ Config::ErrorResult CHyprNstackAlgorithm::layoutMsg(const std::string_view& sv) 
             return Config::configError("missing direction");
 
         if (PWINDOW->layoutTarget()->floating()) {
-            g_pKeybindManager->m_dispatchers["swapwindow"](std::string{vars[1]});
+            (void)Config::Actions::swapInDirection(Math::fromChar(vars[1][0]));
             return {};
         }
 
